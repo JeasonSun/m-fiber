@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RequestIdleCallback</title>
+</head>
+
+<body>
+
+  <script>
+    function sleep(delay) {
+      const start = Date.now();
+      while (Date.now() - start < delay) {
+
+      }
+      console.log('sleep 结束', Date.now() - start)
+    }
+    const works = [
+      () => {
+        console.log('开始执行任务1');
+        sleep(20);
+        console.log('结束执行任务1');
+      },
+      () => {
+        console.log('开始执行任务2');
+        sleep(20);
+        console.log('结束执行任务2');
+      },
+      () => {
+        console.log('开始执行任务3');
+        sleep(20);
+        console.log('结束执行任务3');
+      }
+    ]
+
+    requestIdleCallback(workLoop, { timeout: 1000 });
+
+    function workLoop(deadline) {
+      console.log('剩余时间：', deadline.timeRemaining())
+      while ((deadline.timeRemaining() > 0 || deadline.didTimeout) && works.length) {
+        performUnitOfWork();
+      }
+      if (works.length) {
+        console.log('交出控制权，等待下次执行')
+        requestIdleCallback(workLoop, { timeout: 1000 });
+      }
+    }
+
+    function performUnitOfWork() {
+      const work = works.shift()
+      work();
+    }
+  </script>
+
+</body>
+
+</html>
