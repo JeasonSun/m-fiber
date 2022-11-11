@@ -1,0 +1,10 @@
+const A1 = { key: "A1" };
+const B1 = { key: "B1", return: A1 };
+const B2 = { key: "B2", return: A1 };
+const C1 = { key: "C1", return: B1 };
+const C2 = { key: "C2", return: B1 };
+A1.child = B1;
+B1.child = C1;
+B1.sibling = B2;
+C1.sibling = C2;
+module.exports = A1;

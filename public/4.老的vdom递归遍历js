@@ -1,0 +1,34 @@
+// 递归遍历
+
+const root = {
+  key: "A1",
+  children: [
+    {
+      key: "B1",
+      children: [
+        {
+          key: "C1",
+        },
+        {
+          key: "C2",
+        },
+      ],
+    },
+    {
+      key: "B2",
+    },
+  ],
+};
+
+function walk(vdom) {
+  doWork(vdom);
+  if (vdom.children) {
+    vdom.children.forEach((child) => walk(child));
+  }
+}
+
+function doWork(vdom) {
+  console.log(vdom.key);
+}
+
+walk(root);

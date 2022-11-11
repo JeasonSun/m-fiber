@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+
+    const A1 = { key: "A1" };
+    const B1 = { key: "B1", return: A1 };
+    const B2 = { key: "B2", return: A1 };
+    const C1 = { key: "C1", return: B1 };
+    const C2 = { key: "C2", return: B1 };
+    A1.child = B1;
+    B1.child = C1;
+    B1.sibling = B2;
+    C1.sibling = C2;
+
+    const rootFiber = A1;
+
+    function sleep(delay) {
+      const startTime = Date.now();
+      while (Date.now() - startTime < delay) { }
+    }
+
+    let nextUnitOfWork = null;
+
+    function workLoop(deadline) {
+      while (
+        nextUnitOfWork &&
+        (deadline.timeRemaining() > 0 || deadline.didTimeout)
+      ) {
+        nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+      }
+      if (!nextUnitOfWork) {
+        console.log("render阶段结束");
+      } else {
+        console.log('交出控制权，等待下一次空闲时间')
+        requestIdleCallback(workLoop, { timeout: 1000 });
+      }
+    }
+
+    function performUnitOfWork(fiber) {
+      beginWork(fiber);
+      if (fiber.child) {
+        return fiber.child;
+      }
+      // 如果fiber没有child了， 那就找兄弟
+      while (fiber) {
+        completeUnitOfWork(fiber);
+
+        if (fiber.sibling) {
+          return fiber.sibling;
+        }
+        fiber = fiber.return;
+      }
+    }
+
+    function beginWork(fiber) {
+      console.log("开始", fiber.key);
+      sleep(100);
+    }
+
+    function completeUnitOfWork(fiber) {
+      console.log("结束", fiber.key);
+    }
+
+    /***********  执行 **********/
+
+    nextUnitOfWork = rootFiber;
+    // workLoop();
+
+    requestIdleCallback(workLoop, { timeout: 1000 });
+
+  </script>
+</body>
+
+</html>
