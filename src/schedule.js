@@ -88,11 +88,6 @@ function reconcileChildren(currentFiber, newChildren) {
   let childIndex = 0;
   let prevSibling;
   while (childIndex < newChildren.length) {
-    // tag: TAG_ROOT,
-    // stateNode: container,
-    // props: {
-    //   children: [element],
-    // },
     const newChild = newChildren[childIndex];
     let tag;
     if (newChild && newChild.type === ELEMENT_TEXT) {
