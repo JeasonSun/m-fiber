@@ -17,10 +17,9 @@ let deletions = [];
 export function scheduleRoot(rootFiber) {
   if (currentRoot && currentRoot.alternate) {
     workInProgress = currentRoot.alternate;
-    workInProgress.props = rootFiber.props;
     workInProgress.alternate = currentRoot;
-  }
-  if (currentRoot) {
+    if (rootFiber) workInProgress.props = rootFiber.props;
+  }else if (currentRoot) {
     rootFiber.alternate = currentRoot;
     workInProgress = rootFiber;
   } else {
@@ -122,16 +121,24 @@ function reconcileChildren(currentFiber, newChildren) {
     let newFiber;
     if (isSameType) {
       // 如果是相同类型，更新
-      newFiber = {
-        tag: oldFiber.tag,
-        type: oldFiber.type,
-        props: newChild.props,
-        stateNode: oldFiber.stateNode,
-        return: currentFiber,
-        effectTag: UPDATE,
-        nextEffect: null,
-        alternate: oldFiber,
-      };
+      if (oldFiber.alternate) {
+        newFiber = oldFiber.alternate;
+        newFiber.props = newChild.props;
+        newFiber.effectTag = UPDATE;
+        newFiber.nextEffect = null;
+        newFiber.alternate = oldFiber;
+      } else {
+        newFiber = {
+          tag: oldFiber.tag,
+          type: oldFiber.type,
+          props: newChild.props,
+          stateNode: oldFiber.stateNode,
+          return: currentFiber,
+          effectTag: UPDATE,
+          nextEffect: null,
+          alternate: oldFiber,
+        };
+      }
     } else {
       // 创建新的fiber，删除老的fiber
       if (newChild) {
