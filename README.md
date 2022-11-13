@@ -207,3 +207,10 @@ function commitWork(currentFiber) {
 
 ## 第一次更新
 ### 完善deletions
+
+### reconcileChildren 
+- oldFiber
+
+
+### 双缓存机制
+

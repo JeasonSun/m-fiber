@@ -15,12 +15,21 @@ let currentRoot = null;
 let deletions = [];
 
 export function scheduleRoot(rootFiber) {
+  if (currentRoot && currentRoot.alternate) {
+    workInProgress = currentRoot.alternate;
+    workInProgress.props = rootFiber.props;
+    workInProgress.alternate = currentRoot;
+  }
   if (currentRoot) {
     rootFiber.alternate = currentRoot;
     workInProgress = rootFiber;
   } else {
     workInProgress = rootFiber;
   }
+  workInProgress.firstEffect =
+    workInProgress.lastEffect =
+    workInProgress.nextEffect =
+      null;
   nextUnitOfWork = workInProgress;
 }
 
