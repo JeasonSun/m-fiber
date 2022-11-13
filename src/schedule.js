@@ -4,16 +4,24 @@ import {
   TAG_HOST,
   ELEMENT_TEXT,
   PLACEMENT,
+  DELETION,
+  UPDATE,
 } from "./constants";
 import { setProps } from "./utils";
 
 let nextUnitOfWork = null;
 let workInProgress = null;
+let currentRoot = null;
+let deletions = [];
 
 export function scheduleRoot(rootFiber) {
-  console.log(rootFiber);
-  workInProgress = rootFiber;
-  nextUnitOfWork = rootFiber;
+  if (currentRoot) {
+    rootFiber.alternate = currentRoot;
+    workInProgress = rootFiber;
+  } else {
+    workInProgress = rootFiber;
+  }
+  nextUnitOfWork = workInProgress;
 }
 
 // 遍历fiber树，分割最小任务
@@ -61,33 +69,39 @@ function updateHostRoot(currentFiber) {
 
 function updateHost(currentFiber) {
   // 1.构建真实DOM
-  currentFiber.stateNode = createDOM(currentFiber);
+  if (!currentFiber.stateNode) {
+    currentFiber.stateNode = createDOM(currentFiber);
+  }
+
   const newChildren = currentFiber.props.children;
   reconcileChildren(currentFiber, newChildren);
 }
 
 function updateText(currentFiber) {
-  currentFiber.stateNode = createDOM(currentFiber);
+  if (!currentFiber.stateNode) {
+    currentFiber.stateNode = createDOM(currentFiber);
+  }
 }
 
 function createDOM(currentFiber) {
   if (currentFiber.tag === TAG_HOST) {
     const stateNode = document.createElement(currentFiber.type);
-    updateDOM({}, currentFiber.props, stateNode);
+    updateDOM(stateNode, {}, currentFiber.props);
     return stateNode;
   } else if (currentFiber.tag === TAG_TEXT) {
     return document.createTextNode(currentFiber.props.text);
   }
 }
 
-function updateDOM(oldProps, newProps, element) {
-  setProps(oldProps, newProps, element);
+function updateDOM(element, oldProps, newProps) {
+  setProps(element, oldProps, newProps);
 }
 
 function reconcileChildren(currentFiber, newChildren) {
   let childIndex = 0;
   let prevSibling;
-  while (childIndex < newChildren.length) {
+  let oldFiber = currentFiber.alternate && currentFiber.alternate.child;
+  while (childIndex < newChildren.length || oldFiber) {
     const newChild = newChildren[childIndex];
     let tag;
     if (newChild && newChild.type === ELEMENT_TEXT) {
@@ -95,21 +109,50 @@ function reconcileChildren(currentFiber, newChildren) {
     } else if (newChild && typeof newChild.type === "string") {
       tag = TAG_HOST; // 原生dom类Fiber
     }
-    const newFiber = {
-      tag,
-      type: newChild.type,
-      props: newChild.props,
-      stateNode: null,
-      return: currentFiber,
-      effectTag: PLACEMENT,
-      nextEffect: null,
-    };
+    const isSameType = oldFiber && newChild && oldFiber.type === newChild.type;
+    let newFiber;
+    if (isSameType) {
+      // 如果是相同类型，更新
+      newFiber = {
+        tag: oldFiber.tag,
+        type: oldFiber.type,
+        props: newChild.props,
+        stateNode: oldFiber.stateNode,
+        return: currentFiber,
+        effectTag: UPDATE,
+        nextEffect: null,
+        alternate: oldFiber,
+      };
+    } else {
+      // 创建新的fiber，删除老的fiber
+      if (newChild) {
+        newFiber = {
+          tag,
+          type: newChild.type,
+          props: newChild.props,
+          stateNode: null,
+          return: currentFiber,
+          effectTag: PLACEMENT,
+          nextEffect: null,
+        };
+      }
+
+      if (oldFiber) {
+        oldFiber.effectTag = DELETION;
+        deletions.push(oldFiber);
+      }
+    }
+
     if (childIndex === 0) {
       currentFiber.child = newFiber;
     } else {
       prevSibling.sibling = newFiber;
     }
     prevSibling = newFiber;
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
+    }
+
     childIndex++;
   }
 
@@ -155,12 +198,15 @@ function completeUnitOfWork(currentFiber) {
 function commitRoot() {
   console.log("commit阶段开始");
   console.log(workInProgress);
+  deletions.forEach(commitWork);
   let currentFiber = workInProgress.firstEffect;
   while (currentFiber) {
     commitWork(currentFiber);
     currentFiber = currentFiber.nextEffect;
   }
+  currentRoot = workInProgress;
   workInProgress = null;
+  deletions.length = 0;
 }
 
 function commitWork(currentFiber) {
@@ -171,6 +217,20 @@ function commitWork(currentFiber) {
   let returnDOM = returnFiber.stateNode;
   if (currentFiber.effectTag === PLACEMENT) {
     returnDOM.appendChild(currentFiber.stateNode);
+  } else if (currentFiber.effectTag === DELETION) {
+    returnDOM.removeChild(currentFiber.stateNode);
+  } else if (currentFiber.effectTag === UPDATE) {
+    if (currentFiber.type === ELEMENT_TEXT) {
+      if (currentFiber.alternate.props.text !== currentFiber.props.text) {
+        currentFiber.stateNode.textContent = currentFiber.props.text;
+      }
+    } else {
+      updateDOM(
+        currentFiber.stateNode,
+        currentFiber.alternate.props,
+        currentFiber.props
+      );
+    }
   }
   currentFiber.effectTag = null;
 }

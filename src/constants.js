@@ -6,4 +6,4 @@ export const TAG_HOST = Symbol("TAG_HOST");
 
 export const PLACEMENT = Symbol("PLACEMENT");
 export const UPDATE = Symbol("UPDATE");
-export const deletion = Symbol("DELETION");
+export const DELETION = Symbol("DELETION");

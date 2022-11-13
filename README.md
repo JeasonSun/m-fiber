@@ -204,3 +204,6 @@ function commitWork(currentFiber) {
   currentFiber.effectTag = null;
 }
 ```
+
+## 第一次更新
+### 完善deletions

@@ -1,4 +1,4 @@
-export function setProps(oldProps = {}, newProps = {}, dom) {
+export function setProps(dom, oldProps = {}, newProps = {}) {
   for (let key in oldProps) {
     if (key !== "children") {
       if (newProps.hasOwnProperty(key)) {
