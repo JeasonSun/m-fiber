@@ -1,6 +1,6 @@
 import { ELEMENT_TEXT } from "./constants";
 import { Update } from "./updateQueue";
-import { scheduleRoot } from "./schedule";
+import { scheduleRoot, useReducer, useState } from "./schedule";
 
 function createElement(type, config, ...children) {
   delete config._self;
@@ -40,6 +40,8 @@ Component.prototype.isComponent = {};
 const React = {
   createElement,
   Component,
+  useReducer,
+  useState,
 };
 
 export default React;

@@ -9,13 +9,15 @@ import {
   DELETION,
   UPDATE,
 } from "./constants";
-import { UpdateQueue } from "./updateQueue";
+import { UpdateQueue, Update } from "./updateQueue";
 import { setProps } from "./utils";
 
 let nextUnitOfWork = null;
 let workInProgress = null;
 let currentRoot = null;
 let deletions = [];
+let workInProgressFiber = null;
+let hookIndex = 0;
 
 export function scheduleRoot(rootFiber) {
   if (currentRoot && currentRoot.alternate) {
@@ -100,7 +102,15 @@ function updateClassComponent(currentFiber) {
   reconcileChildren(currentFiber, newChildren);
 }
 
-function updateFunctionComponent(currentFiber) {}
+function updateFunctionComponent(currentFiber) {
+  workInProgressFiber = currentFiber;
+  hookIndex = 0;
+  workInProgressFiber.hooks = [];
+
+  const newElement = currentFiber.type(currentFiber.props);
+  const newChildren = [newElement];
+  reconcileChildren(currentFiber, newChildren);
+}
 
 // rootFiber转换为真实DOM
 function updateHostRoot(currentFiber) {
@@ -349,3 +359,36 @@ function workLoop(deadline) {
 }
 
 requestIdleCallback(workLoop, { timeout: 500 });
+
+/************* hooks *******************/
+
+export function useReducer(reducer, initialState) {
+  let newHook =
+    workInProgressFiber.alternate &&
+    workInProgressFiber.alternate.hooks &&
+    workInProgressFiber.alternate.hooks[hookIndex];
+  if (newHook) {
+    // 更新阶段
+    newHook.state = newHook.updateQueue.forceUpdate(newHook.state);
+  } else {
+    // 初始化阶段
+    newHook = {
+      state: initialState,
+      updateQueue: new UpdateQueue(),
+    };
+  }
+
+  const dispatch = (action) => {
+    let payload = reducer ? reducer(newHook.state, action) : action;
+    newHook.updateQueue.enqueueUpdate(new Update(payload));
+    scheduleRoot();
+  };
+
+  workInProgressFiber.hooks[hookIndex] = newHook;
+  hookIndex++;
+  return [newHook.state, dispatch];
+}
+
+export function useState(initialState) {
+  return useReducer(null, initialState);
+}
