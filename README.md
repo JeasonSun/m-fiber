@@ -206,11 +206,21 @@ function commitWork(currentFiber) {
 ```
 
 ## 第一次更新
-### 完善deletions
 
-### reconcileChildren 
+### 完善 deletions
+
+### reconcileChildren
+
 - oldFiber
-
 
 ### 双缓存机制
 
+## 实现类组件的更新逻辑, ClassComponent
+
+- rootFiber 在 reconcileChildren 中，会发现虚拟 DOM 的 type 是一个 class 函数，标记 tag： TAG_CLASS_COMPONENT，新增 updateQueue
+- beginWork 中对 TAG_CLASS_COMPONENT 做相应的 updateClassComponent 逻辑处理，设置 stateNode 和 reconcileChildren
+- 在 commit 阶段，如果 stateNode 不是 dom 元素，需要做相应的处理，找到真实 dom 元素再做增删操作。
+
+## 实现 FunctionComponent
+
+## hooks

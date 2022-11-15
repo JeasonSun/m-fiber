@@ -2,11 +2,14 @@ import {
   TAG_ROOT,
   TAG_TEXT,
   TAG_HOST,
+  TAG_CLASS_COMPONENT,
+  TAG_FUNCTION_COMPONENT,
   ELEMENT_TEXT,
   PLACEMENT,
   DELETION,
   UPDATE,
 } from "./constants";
+import { UpdateQueue } from "./updateQueue";
 import { setProps } from "./utils";
 
 let nextUnitOfWork = null;
@@ -19,9 +22,16 @@ export function scheduleRoot(rootFiber) {
     workInProgress = currentRoot.alternate;
     workInProgress.alternate = currentRoot;
     if (rootFiber) workInProgress.props = rootFiber.props;
-  }else if (currentRoot) {
-    rootFiber.alternate = currentRoot;
-    workInProgress = rootFiber;
+  } else if (currentRoot) {
+    if (rootFiber) {
+      rootFiber.alternate = currentRoot;
+      workInProgress = rootFiber;
+    } else {
+      workInProgress = {
+        ...currentRoot,
+        alternate: currentRoot,
+      };
+    }
   } else {
     workInProgress = rootFiber;
   }
@@ -30,6 +40,7 @@ export function scheduleRoot(rootFiber) {
     workInProgress.nextEffect =
       null;
   nextUnitOfWork = workInProgress;
+  console.log("重新开始渲染");
 }
 
 // 遍历fiber树，分割最小任务
@@ -61,11 +72,35 @@ function beginWork(currentFiber) {
     case TAG_TEXT:
       updateText(currentFiber);
       break;
+    case TAG_CLASS_COMPONENT:
+      updateClassComponent(currentFiber);
+      break;
+    case TAG_FUNCTION_COMPONENT:
+      updateFunctionComponent(currentFiber);
+      break;
     default:
       console.log("[beginWork]", "暂时无法处理此类型Fiber", currentFiber.tag);
       break;
   }
 }
+
+function updateClassComponent(currentFiber) {
+  if (!currentFiber.stateNode) {
+    currentFiber.stateNode = new currentFiber.type(currentFiber.props);
+    currentFiber.stateNode.internalFiber = currentFiber;
+    currentFiber.updateQueue = new UpdateQueue();
+  }
+  currentFiber.stateNode.state = currentFiber.updateQueue.forceUpdate(
+    currentFiber.stateNode.state
+  );
+
+  let newElement = currentFiber.stateNode.render();
+
+  let newChildren = [newElement];
+  reconcileChildren(currentFiber, newChildren);
+}
+
+function updateFunctionComponent(currentFiber) {}
 
 // rootFiber转换为真实DOM
 function updateHostRoot(currentFiber) {
@@ -109,6 +144,9 @@ function reconcileChildren(currentFiber, newChildren) {
   let childIndex = 0;
   let prevSibling;
   let oldFiber = currentFiber.alternate && currentFiber.alternate.child;
+  if (oldFiber) {
+    oldFiber.firstEffect = oldFiber.lastEffect = oldFiber.nextEffect = null;
+  }
   while (childIndex < newChildren.length || oldFiber) {
     const newChild = newChildren[childIndex];
     let tag;
@@ -116,6 +154,18 @@ function reconcileChildren(currentFiber, newChildren) {
       tag = TAG_TEXT; // 文本类fiber
     } else if (newChild && typeof newChild.type === "string") {
       tag = TAG_HOST; // 原生dom类Fiber
+    } else if (
+      newChild &&
+      typeof newChild.type === "function" &&
+      newChild.type.prototype.isComponent
+    ) {
+      // 类组件
+      tag = TAG_CLASS_COMPONENT;
+    } else if (newChild && typeof newChild.type === "function") {
+      // 函数组件
+      tag = TAG_FUNCTION_COMPONENT;
+    } else {
+      console.log("其他类型的Vdom", newChild);
     }
     const isSameType = oldFiber && newChild && oldFiber.type === newChild.type;
     let newFiber;
@@ -127,6 +177,7 @@ function reconcileChildren(currentFiber, newChildren) {
         newFiber.effectTag = UPDATE;
         newFiber.nextEffect = null;
         newFiber.alternate = oldFiber;
+        newFiber.updateQueue = oldFiber.updateQueue || new UpdateQueue();
       } else {
         newFiber = {
           tag: oldFiber.tag,
@@ -137,6 +188,7 @@ function reconcileChildren(currentFiber, newChildren) {
           effectTag: UPDATE,
           nextEffect: null,
           alternate: oldFiber,
+          updateQueue: oldFiber.updateQueue || new UpdateQueue(),
         };
       }
     } else {
@@ -150,6 +202,7 @@ function reconcileChildren(currentFiber, newChildren) {
           return: currentFiber,
           effectTag: PLACEMENT,
           nextEffect: null,
+          updateQueue: new UpdateQueue(),
         };
       }
 
@@ -230,10 +283,27 @@ function commitWork(currentFiber) {
     return;
   }
   let returnFiber = currentFiber.return;
+  while (
+    returnFiber.tag !== TAG_HOST &&
+    returnFiber.tag !== TAG_ROOT &&
+    returnFiber.tag !== TAG_TEXT
+  ) {
+    returnFiber = returnFiber.return;
+  }
   let returnDOM = returnFiber.stateNode;
   if (currentFiber.effectTag === PLACEMENT) {
-    returnDOM.appendChild(currentFiber.stateNode);
+    // currentFiber.stateNode有可能是类组件的实例
+    let nextFiber = currentFiber;
+    while (
+      nextFiber &&
+      nextFiber.tag !== TAG_HOST &&
+      nextFiber.tag !== TAG_TEXT
+    ) {
+      nextFiber = nextFiber.child;
+    }
+    returnDOM.appendChild(nextFiber.stateNode);
   } else if (currentFiber.effectTag === DELETION) {
+    commitDeletion(currentFiber, returnDOM);
     returnDOM.removeChild(currentFiber.stateNode);
   } else if (currentFiber.effectTag === UPDATE) {
     if (currentFiber.type === ELEMENT_TEXT) {
@@ -249,6 +319,14 @@ function commitWork(currentFiber) {
     }
   }
   currentFiber.effectTag = null;
+}
+
+function commitDeletion(currentFiber, returnDOM) {
+  if (currentFiber.tag === TAG_HOST || currentFiber.tag === TAG_TEXT) {
+    returnDOM.removeChild(currentFiber.stateNode);
+  } else {
+    commitDeletion(currentFiber.child, returnDOM);
+  }
 }
 
 /****

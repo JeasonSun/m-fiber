@@ -1,6 +1,10 @@
 import { ELEMENT_TEXT } from "./constants";
+import { Update } from "./updateQueue";
+import { scheduleRoot } from "./schedule";
 
 function createElement(type, config, ...children) {
+  delete config._self;
+  delete config._source;
   return {
     type,
     props: {
@@ -20,8 +24,22 @@ function createElement(type, config, ...children) {
   };
 }
 
+class Component {
+  constructor(props) {
+    this.props = props;
+  }
+  setState(payload) {
+    let update = new Update(payload);
+    this.internalFiber.updateQueue.enqueueUpdate(update);
+    scheduleRoot();
+  }
+}
+
+Component.prototype.isComponent = {};
+
 const React = {
   createElement,
+  Component,
 };
 
 export default React;
