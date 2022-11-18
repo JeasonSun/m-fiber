@@ -3,8 +3,8 @@ import { Update } from "./updateQueue";
 import { scheduleRoot, useReducer, useState } from "./schedule";
 
 function createElement(type, config, ...children) {
-  delete config._self;
-  delete config._source;
+  delete config.__self;
+  delete config.__source;
   return {
     type,
     props: {
@@ -20,7 +20,7 @@ function createElement(type, config, ...children) {
               },
             }
       ),
-    },
+    }
   };
 }
 

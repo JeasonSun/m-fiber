@@ -1,7 +1,6 @@
-/** @jsxRuntime classic */
-// 上面的魔法注释，可以让babel编译的时候用我们自己的createElement
 import React from "./react";
 import ReactDOM from "./react-dom";
+
 
 const ADD = "ADD";
 function reducer(state, action) {

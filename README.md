@@ -6,6 +6,13 @@
 
 ### 单链表 （updateQueue）
 
+### createElement 创建虚拟DOM
+```javascript
+// 在jsx文件头部加入下列魔法注释，可以让babel使用我们自己的React.createElement
+/** @jsxRuntime classic */
+
+```
+
 ## 初次渲染
 
 ### 1. 注册 requestIdleCallback，在每一帧的空闲时间运行 workLoop
